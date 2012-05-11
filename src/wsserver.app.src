@@ -1,6 +1,6 @@
 {application, wsserver,
  [
-  {description, ""},
+  {description, "A simple websocket server"},
   {vsn, "1"},
   {registered, []},
   {applications, [
