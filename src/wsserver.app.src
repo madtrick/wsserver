@@ -1,0 +1,12 @@
+{application, wsserver,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { wsserver_app, []}},
+  {env, []}
+ ]}.
