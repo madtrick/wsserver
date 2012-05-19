@@ -29,16 +29,11 @@ loop(Socket, State) ->
   end.
 
 handle_data(Socket, Data, State) ->
-  case State#state.status of
-    ?HANDSHAKE ->
-      {reply, NextStatus, Response} = handle(?HANDSHAKE, Data),
-      gen_tcp:send(Socket, Response),
-      State#state{status = NextStatus};
-    ?OPEN ->
-      {reply, NextStatus, Messages} = handle(?OPEN, Data),
+  case handle(State#state.status, Data) of
+    {reply, NextStatus, Messages} ->
       gen_tcp:send(Socket, Messages),
       State#state{status = NextStatus};
-    _ -> io:format("invalid state \n")
+    _ -> io:format("Unknown response \n" , [])
   end.
 
 handle(?HANDSHAKE, Data) ->
