@@ -1,7 +1,7 @@
 -module(wsworker).
 
--export([start_link/1]).
--export([init/1, loop/2, handle_data/3]).
+-export([start_link/2]).
+-export([init/2, loop/2, handle_data/3]).
 
 -include_lib("wsock/include/wsock.hrl").
 
@@ -9,16 +9,24 @@
 -define(OPEN, open).
 -define(CLOSE, close).
 
+-record(handler, {
+    module,
+    state
+  }).
+
 -record(state, {
+  handler,
   status = ?HANDSHAKE,
   fragmented_message
   }).
 
-start_link(Socket) ->
-  spawn_link(?MODULE, init, [Socket]).
+start_link(Socket, Options) ->
+  spawn_link(?MODULE, init, [Socket, Options]).
 
-init(Socket) ->
-  loop(Socket, #state{}).
+init(Socket, Options) ->
+  HandlerModule = proplists:get_value(handler, Options),
+  HandlerState  = HandlerModule:init(),
+  loop(Socket, #state{ handler = #handler{ module = HandlerModule, state = HandlerState }}).
 
 loop(Socket, State) ->
   case gen_tcp:recv(Socket, 0) of
@@ -59,9 +67,8 @@ handle(State = #state{ fragmented_message = FragmentedMessage }, Data) ->
 handle_message(State = #state{ status = ?OPEN }, Message = #message{ type = fragmented }) ->
   {fragmented_message, State#state{ fragmented_message = Message }};
 handle_message(State = #state{ status = ?OPEN }, Message = #message{ type = text }) ->
-  io:format("Receive message: ~s \n", [Message#message.payload]),
-  ResponseMessages = wsock_message:encode("Received", [text]),
-  {reply, State#state{ fragmented_message = undefined }, ResponseMessages};
+  {_, NewHandlerState, Response} = (State#state.handler#handler.module):handle(Message#message.payload, State#state.handler#handler.state),
+  {reply, State#state{ fragmented_message = undefined , handler = State#state.handler#handler{ state = NewHandlerState }}, wsock_message:encode(Response, [text])};
 handle_message(State = #state{ status = ?OPEN }, #message{ type = close }) ->
   io:format("Close connection \n", []),
   CloseMessage = wsock_message:encode("OK", [close]),

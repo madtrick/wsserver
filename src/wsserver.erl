@@ -6,7 +6,8 @@
 
 -record(state, {
     listen_socket,
-    acceptor
+    acceptor,
+    worker_options
   }).
 
 start_link(Options) ->
@@ -20,10 +21,10 @@ init(Options) ->
 
   {ok, ListenSock} = gen_tcp:listen(proplists:get_value(port, Options, 8080), [binary, {active, false}, {reuseaddr, true}, {buffer, 1000}]),
   Acceptor = acceptor:start_link(?MODULE, ListenSock),
-  {ok, #state{ listen_socket = ListenSock, acceptor = Acceptor}}.
+  {ok, #state{ listen_socket = ListenSock, acceptor = Acceptor, worker_options = proplists:get_value(worker_options, Options, [])}}.
 
 handle_info({acceptor, accept, Socket}, State) ->
-  wsworker:start_link(Socket),
+  wsworker:start_link(Socket, State#state.worker_options),
   {noreply, State};
 
 handle_info({'EXIT', _From, Reason}, State) ->
