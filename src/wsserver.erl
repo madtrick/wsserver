@@ -18,7 +18,7 @@ start_link() ->
 init(_Args) ->
   process_flag(trap_exit, true),
 
-  {ok, ListenSock} = gen_tcp:listen(8081, [binary, {active, false}, {reuseaddr, true}]),
+  {ok, ListenSock} = gen_tcp:listen(8082, [binary, {active, false}, {reuseaddr, true}, {buffer, 1000}]),
   Acceptor = acceptor:start_link(?MODULE, ListenSock),
   {ok, #state{ listen_socket = ListenSock, acceptor = Acceptor}}.
 

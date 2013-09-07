@@ -10,7 +10,8 @@
 -define(CLOSE, close).
 
 -record(state, {
-  status = ?HANDSHAKE
+  status = ?HANDSHAKE,
+  fragmented_message
   }).
 
 start_link(Socket) ->
@@ -29,32 +30,40 @@ loop(Socket, State) ->
   end.
 
 handle_data(Socket, Data, State) ->
-  case handle(State#state.status, Data) of
-    {reply, NextStatus, Messages} ->
+  case handle(State, Data) of
+    {reply, NewState, Messages} ->
       gen_tcp:send(Socket, Messages),
-      State#state{status = NextStatus};
-    _ -> io:format("Unknown response \n" , [])
+      NewState;
+    {fragmented_message, NewState} ->
+      NewState;
+    _ ->
+      io:format("Unknown response \n" , []),
+      State
   end.
 
-handle(?HANDSHAKE, Data) ->
+handle(State = #state{ status = ?HANDSHAKE }, Data) ->
   {ok, OpenHttpMessage}   = wsock_http:decode(Data, request),
   {ok, OpenHandshake}     = wsock_handshake:handle_open(OpenHttpMessage),
   ClientWSKey             = wsock_http:get_header_value("sec-websocket-key", OpenHandshake#handshake.message),
   {ok, HandshakeResponse} = wsock_handshake:response(ClientWSKey),
   ResponseHttpMessage     = wsock_http:encode(HandshakeResponse#handshake.message),
-  {reply, ?OPEN, ResponseHttpMessage};
+  {reply, State#state{ status = ?OPEN }, ResponseHttpMessage};
 
-handle(Status, Data) ->
+handle(State = #state{ fragmented_message = undefined }, Data) ->
   [Message] = wsock_message:decode(Data, [masked]),
-  handle_message(Status, Message).
+  handle_message(State, Message);
+handle(State = #state{ fragmented_message = FragmentedMessage }, Data) ->
+  [Message] = wsock_message:decode(Data, FragmentedMessage, [masked]),
+  handle_message(State, Message).
 
-handle_message(?OPEN, Message) when Message#message.type == text ->
+handle_message(State = #state{ status = ?OPEN }, Message = #message{ type = fragmented }) ->
+  {fragmented_message, State#state{ fragmented_message = Message }};
+handle_message(State = #state{ status = ?OPEN }, Message = #message{ type = text }) ->
   io:format("Receive message: ~s \n", [Message#message.payload]),
   ResponseMessages = wsock_message:encode("Received", [text]),
-  {reply, ?OPEN, ResponseMessages};
-
-handle_message(?OPEN, Message) when Message#message.type == close  ->
+  {reply, State#state{ fragmented_message = undefined }, ResponseMessages};
+handle_message(State = #state{ status = ?OPEN }, #message{ type = close }) ->
   io:format("Close connection \n", []),
   CloseMessage = wsock_message:encode("OK", [close]),
-  {reply, ?CLOSE, CloseMessage}.
+  {reply, State#state{status = ?CLOSE}, CloseMessage}.
 
