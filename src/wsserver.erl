@@ -24,7 +24,11 @@ init(Options) ->
   {ok, #state{ listen_socket = ListenSock, acceptor = Acceptor, worker_options = proplists:get_value(worker_options, Options, [])}}.
 
 handle_info({acceptor, accept, Socket}, State) ->
-  wsworker:start_link(Socket, State#state.worker_options),
+  {ok, WorkerSocket} = wsworker_socket:start_link(Socket),
+  ok                 = gen_tcp:controlling_process(Socket, WorkerSocket),
+  {ok, Worker}       = wsworker:start_link(WorkerSocket, State#state.worker_options),
+  wsworker_socket:add_worker(WorkerSocket, Worker),
+
   {noreply, State};
 
 handle_info({'EXIT', _From, Reason}, State) ->

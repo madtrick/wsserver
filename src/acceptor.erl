@@ -15,7 +15,9 @@ start_link(SockServer, AcceptSock) ->
 %===========
 loop(SockServer, AcceptSock) ->
   case gen_tcp:accept(AcceptSock) of
-    {ok, Socket} -> SockServer ! {acceptor, accept, Socket};
+    {ok, Socket} ->
+      ok = gen_tcp:controlling_process(Socket, whereis(SockServer)),
+      SockServer ! {acceptor, accept, Socket};
     {error, Reason} -> SockServer ! {acceptor, error, Reason}
   end,
   loop(SockServer, AcceptSock).
