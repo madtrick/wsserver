@@ -1,13 +1,13 @@
 -module(wsworker_handler).
 -include("wsworker.hrl").
--export([init/0, handle/2]).
+-export([init/1, handle/2]).
 
 -record(state,{}).
 
-init() ->
+init(_) ->
   #state{}.
 
-handle(State, {text, Message}) ->
+handle({text, Message}, State) ->
   io:format("Received: ~s ~n", [Message]),
   {noreply, State}.
 

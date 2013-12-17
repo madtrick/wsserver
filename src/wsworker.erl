@@ -1,7 +1,7 @@
 -module(wsworker).
 -behaviour(gen_server).
 
--export([start_link/2, process/2, stop/1]).
+-export([start_link/2, process/2, send/2, stop/1]).
 -export([init/1, handle_cast/2, terminate/2]).
 
 -include("wsworker.hrl").
@@ -30,13 +30,20 @@ start_link(Socket, Options) ->
 process(Worker, Data) ->
   gen_server:cast(Worker, {process, Data}).
 
+send(Worker, Data) ->
+  gen_server:cast(Worker, {send, Data}).
+
 stop(Worker) ->
   gen_server:cast(Worker, stop).
 
 init([Socket, Options]) ->
   HandlerModule = proplists:get_value(handler, Options),
-  HandlerState  = HandlerModule:init(),
+  HandlerState  = HandlerModule:init([{worker, self()}]),
   {ok, #state{ worker_socket = Socket, handler = #handler{ module = HandlerModule, state = HandlerState }}}.
+
+handle_cast({send, Data}, State) ->
+  wsworker_socket:send(State#state.worker_socket, wsmessage:encode(Data)),
+  {noreply, State};
 
 handle_cast(stop, State) ->
   {stop, stop, State};
@@ -73,7 +80,7 @@ process_messages([H | T], State) ->
   end.
 
 process_message(Message = {Type, _Payload}, State) when Type =:= text; Type =:= binary->
-  {ReplyType, NewHandlerState} = (State#state.handler#handler.module):handle(State#state.handler#handler.state, Message),
+  {ReplyType, NewHandlerState} = (State#state.handler#handler.module):handle(Message, State#state.handler#handler.state),
 
   {ReplyType, State#state{ handler = State#state.handler#handler{ state = NewHandlerState } }};
 process_message({close, _Payload}, State) ->

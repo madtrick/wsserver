@@ -1,7 +1,10 @@
 -module(wsmessage).
 -include_lib("wsock/include/wsock.hrl").
 
--export([decode/1, decode/2, close/1]).
+-export([decode/1, decode/2, encode/1, close/1]).
+
+encode(Data) ->
+  wsock_message:encode(Data, [text]).
 
 decode(Data, FragmentedMessage) ->
   Messages = wsock_message:decode(Data, FragmentedMessage, [masked]),

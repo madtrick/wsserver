@@ -42,4 +42,9 @@ handle_cast({send, Data}, State) ->
   gen_tcp:send(State#state.socket, Data),
   {noreply, State}.
 
-terminate(_Reason, _State) -> ok.
+terminate(_Reason, State) ->
+  stop_worker(State#state.worker),
+  die.
+
+stop_worker(Worker) ->
+  wsworker:stop(Worker).
