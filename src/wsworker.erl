@@ -21,7 +21,8 @@
   handler,
   status = ?HANDSHAKE,
   fragmented_message,
-  processor_state
+  processor_state,
+  buffer
   }).
 
 start_link(Socket, Options) ->
@@ -39,7 +40,7 @@ stop(Worker) ->
 init([Socket, Options]) ->
   HandlerModule = proplists:get_value(handler, Options),
   HandlerState  = HandlerModule:init([{worker, self()}]),
-  {ok, #state{ worker_socket = Socket, handler = #handler{ module = HandlerModule, state = HandlerState }}}.
+  {ok, #state{ worker_socket = Socket, handler = #handler{ module = HandlerModule, state = HandlerState }, buffer = <<>>}}.
 
 handle_cast({send, Data}, State) ->
   wsworker_socket:send(State#state.worker_socket, wsmessage:encode(Data)),
@@ -56,9 +57,23 @@ terminate(_Reason, _State) ->
   ok.
 
 handle(State = #state{ status = ?HANDSHAKE }, Data) ->
-  {Reply, NewProcessorState} = wsworker_request_processor:handle_upgrade_request(Data),
-  wsworker_socket:send(State#state.worker_socket, Reply),
-  State#state{ status = ?OPEN, processor_state = NewProcessorState };
+  Buffer  = State#state.buffer,
+  Request = <<Buffer/binary, Data/binary>>,
+
+  case wsworker_request_processor:handle_upgrade_request(Request) of
+    {incomplete, ToBuffer} ->
+      NewBuffer = <<Buffer/binary, ToBuffer/binary>>,
+      State#state{ buffer = NewBuffer };
+    {reply, Reply, NewProcessorState} ->
+      wsworker_socket:send(State#state.worker_socket, Reply),
+      State#state{ buffer = <<>>, status = ?OPEN, processor_state = NewProcessorState }
+  end;
+
+%handle(State = #state{ status = ?HANDSHAKE }, Data) ->
+%  io:format("Handling handshape request ~w ~n", [Data]),
+%  {Reply, NewProcessorState} = wsworker_request_processor:handle_upgrade_request(Data),
+%  wsworker_socket:send(State#state.worker_socket, Reply),
+%  State#state{ status = ?OPEN, processor_state = NewProcessorState };
 
 handle(State = #state{ status = ?OPEN }, Data) ->
   {Messages, NewProcessorState} = wsworker_request_processor:handle_ws_request(Data, State#state.processor_state),
