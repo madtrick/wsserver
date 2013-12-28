@@ -1,21 +1,38 @@
--module(wsrequest_http).
+-module(wsserver_http_callback).
 -include_lib("wsock/include/wsock.hrl").
 
--export([process/1]).
+-export([init/1]).
+-export([handle_connection_in/2]).
 
-process(Data) ->
-  case get_request(wsock_http_message_data:new(), Data) of
-    incomplete -> {incomplete, Data};
-    {ok, OpenHttpMessage} ->
-      {ok, OpenHandshake}     = wsock_handshake:handle_open(OpenHttpMessage),
-      ClientWSKey             = wsock_http:get_header_value("sec-websocket-key", OpenHandshake#handshake.message),
-      {ok, HandshakeResponse} = wsock_handshake:response(ClientWSKey),
-      {ok, wsock_http:encode(HandshakeResponse#handshake.message)}
+init(_Options) ->
+  wsserver_http_callback_state_data:new().
+
+handle_connection_in(Data, CallbackState) ->
+  Buffer  = wsserver_http_callback_state_data:buffer(CallbackState),
+  Request = <<Buffer/binary, Data/binary>>,
+
+  case process_request(Request) of
+    incomplete ->
+      {do_nothing, wsserver_http_callback_state_data:update(CallbackState, [{buffer, Request}])};
+    {reply, Reply} ->
+      {send, Reply, new_callback_module, wsserver_websocket_callback}
   end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Internal
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+process_request(Data) ->
+  case get_request(wsock_http_message_data:new(), Data) of
+    incomplete ->
+      incomplete;
+    {ok, OpenHttpMessage} ->
+      {ok, OpenHandshake}     = wsock_handshake:handle_open(OpenHttpMessage),
+      ClientWSKey             = wsock_http:get_header_value("sec-websocket-key", OpenHandshake#handshake.message),
+      {ok, HandshakeResponse} = wsock_handshake:response(ClientWSKey),
+      {reply, wsock_http:encode(HandshakeResponse#handshake.message)}
+  end.
+
 get_request(HttpMessage, Data) ->
   case erlang:decode_packet(http_bin, Data, []) of
     {more, _} ->
