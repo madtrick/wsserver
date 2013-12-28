@@ -1,21 +1,21 @@
--module(wsserver_http_callback).
+-module(wsserver_http_protocol).
 -include_lib("wsock/include/wsock.hrl").
 
 -export([init/1]).
 -export([handle_connection_in/2]).
 
 init(_Options) ->
-  wsserver_http_callback_state_data:new().
+  wsserver_http_protocol_state_data:new().
 
-handle_connection_in(Data, CallbackState) ->
-  Buffer  = wsserver_http_callback_state_data:buffer(CallbackState),
+handle_connection_in(Data, ProtocolState) ->
+  Buffer  = wsserver_http_protocol_state_data:buffer(ProtocolState),
   Request = <<Buffer/binary, Data/binary>>,
 
   case process_request(Request) of
     incomplete ->
-      {do_nothing, wsserver_http_callback_state_data:update(CallbackState, [{buffer, Request}])};
+      {do_nothing, wsserver_http_protocol_state_data:update(ProtocolState, [{buffer, Request}])};
     {reply, Reply} ->
-      {send, Reply, new_callback_module, wsserver_websocket_callback}
+      {send, Reply, new_protocol_module, wsserver_websocket_protocol}
   end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
