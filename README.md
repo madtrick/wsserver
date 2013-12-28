@@ -83,7 +83,7 @@ Pull requests and patches are welcome.
 ###Author
 Farruco Sanjurjo. You can contact me at:
 
-* Twitter @madtrick
+* Twitter [@madtrick](https://twitter.com/madtrick)
 * Mail madtrick@gmail.com
 
 ###License
