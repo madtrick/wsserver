@@ -22,12 +22,12 @@ handle_connection_close(Worker) ->
 
 init([Socket, Options]) ->
   WorkerTCP = wsserver_worker_tcp:start_link(self(), Socket),
-  {ok, wsserver_worker_state_data:new([{worker_tcp, WorkerTCP}, {callback_module, wsserver_http_callback}, {callback_module_state, wsserver_http_callback:init([])} | Options]) }.
+  {ok, wsserver_worker_state_data:new([{worker_tcp, WorkerTCP}, {protocol_module, wsserver_http_protocol}, {protocol_module_state, wsserver_http_protocol:init([])} | Options]) }.
 
 handle_cast({send, Data}, WorkerState) ->
   send_data(Data, WorkerState);
 handle_cast({connection_data, Data}, WorkerState) ->
-  handle_connection_data_in_callback_module(Data, WorkerState).
+  handle_connection_data_in_protocol_module(Data, WorkerState).
 
 handle_call(connection_close, _, WorkerState) ->
   {stop, client_connection_close, WorkerState}.
@@ -41,48 +41,48 @@ terminate(_Reason, WorkerState) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 send_data(Data, WorkerState) ->
-  {ok, Message} = (callback_module(WorkerState)):handle_connection_out(Data, callback_module_state(WorkerState)),
+  {ok, Message} = (protocol_module(WorkerState)):handle_connection_out(Data, protocol_module_state(WorkerState)),
   wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Message),
   {noreply, WorkerState}.
 
-handle_connection_data_in_callback_module(Data, WorkerState) ->
-  case ((callback_module(WorkerState)):handle_connection_in(Data, callback_module_state(WorkerState))) of
-    {send, Reply, new_callback_module, CallbackModule} ->
+handle_connection_data_in_protocol_module(Data, WorkerState) ->
+  case ((protocol_module(WorkerState)):handle_connection_in(Data, protocol_module_state(WorkerState))) of
+    {send, Reply, new_protocol_module, ProtocolModule} ->
       wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Reply),
       {
         noreply,
-        update_worker_state(WorkerState, [{callback_module_state, init_callback_module(CallbackModule, WorkerState)}, {callback_module, CallbackModule}])
+        update_worker_state(WorkerState, [{protocol_module_state, init_protocol_module(ProtocolModule, WorkerState)}, {protocol_module, ProtocolModule}])
       };
-    {send, Reply, NewCallbackModuleState} ->
+    {send, Reply, NewProtocolModuleState} ->
       wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Reply),
       {
         noreply,
-        update_worker_state(WorkerState, [{callback_module_state, NewCallbackModuleState}])
+        update_worker_state(WorkerState, [{protocol_module_state, NewProtocolModuleState}])
       };
-    {close, Reply, _NewCallbackModuleState} ->
+    {close, Reply, _NewProtocolModuleState} ->
       wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Reply),
       {
         stop,
         server_connection_close
       };
-    {do_nothing, NewCallbackModuleState} ->
+    {do_nothing, NewProtocolModuleState} ->
       {
         noreply,
-        update_worker_state(WorkerState, [{callback_module_state, NewCallbackModuleState}])
+        update_worker_state(WorkerState, [{protocol_module_state, NewProtocolModuleState}])
       }
   end.
 
-init_callback_module(CallbackModule, WorkerState) ->
-  CallbackModule:init(callback_module_options(CallbackModule, WorkerState)).
+init_protocol_module(ProtocolModule, WorkerState) ->
+  ProtocolModule:init(protocol_module_options(ProtocolModule, WorkerState)).
 
-callback_module_state(WorkerState) ->
-  wsserver_worker_state_data:callback_module_state(WorkerState).
+protocol_module_state(WorkerState) ->
+  wsserver_worker_state_data:protocol_module_state(WorkerState).
 
-callback_module(WorkerState) ->
-  wsserver_worker_state_data:callback_module(WorkerState).
+protocol_module(WorkerState) ->
+  wsserver_worker_state_data:protocol_module(WorkerState).
 
-callback_module_options(CallbackModule, WorkerState) ->
-  wsserver_worker_state_data:callback_module_options(CallbackModule, WorkerState).
+protocol_module_options(ProtocolModule, WorkerState) ->
+  wsserver_worker_state_data:protocol_module_options(ProtocolModule, WorkerState).
 
 update_worker_state(WorkerState, Options) ->
   wsserver_worker_state_data:update(WorkerState, Options).
