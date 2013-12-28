@@ -6,7 +6,7 @@
 init(Options)->
   init_handler_module(wsserver_websocket_callback_state_data:new(Options)).
 
-handle_connection_out(Data, CallbackState) ->
+handle_connection_out(Data, _CallbackState) ->
   {ok, wsmessage:encode(Data)}.
 
 handle_connection_in(Data, CallbackState) ->
