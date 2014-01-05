@@ -1,5 +1,8 @@
 #Change Log
 
+###0.3.0
+* Fix a bug. The response from the ```wsserver_http_protocol:handle_connection_in/2``` was in some cases the atom ```do_nothing```  which is no longer valid.
+
 ###0.2.0
 
 * New API module to interact with websocket workers: ```wsserver_worker_websocket```. This change makes unusable the old API module ```wsserver_worker```.

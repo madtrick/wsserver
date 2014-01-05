@@ -26,7 +26,7 @@ handle_connection_in(Data, ProtocolState) ->
 
   case process_request(Request) of
     incomplete ->
-      {[do_nothing], wsserver_http_protocol_state_data:update(ProtocolState, [{buffer, Request}])};
+      {[noreply], wsserver_http_protocol_state_data:update(ProtocolState, [{buffer, Request}])};
     {reply, Reply} ->
       {[{reply, Reply}], new_protocol_module, wsserver_websocket_protocol}
   end.
