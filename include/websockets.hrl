@@ -1,0 +1,2 @@
+-define(NORMAL_CLOSURE_REASON, "Normal close").
+-define(NORMAL_CLOSURE_CODE, 1000).

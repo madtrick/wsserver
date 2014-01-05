@@ -15,13 +15,10 @@
 
 -export([start_link/2]).
 -export([init/1, handle_cast/2, handle_call/3, terminate/2]).
--export([send/2, handle_connection_data/2, handle_connection_close/1]).
+-export([handle_connection_data/2, handle_connection_close/1]).
 
 start_link(Socket, Options) ->
   gen_server:start_link(?MODULE, [Socket, Options], []).
-
-send(Worker, Data) ->
-  gen_server:cast(Worker, {send,Data}).
 
 handle_connection_data(Worker, Data) ->
   gen_server:cast(Worker, {connection_data, Data}).
@@ -37,8 +34,8 @@ init([Socket, Options]) ->
   WorkerTCP = wsserver_worker_tcp:start_link(self(), Socket),
   {ok, wsserver_worker_state_data:new([{worker_tcp, WorkerTCP}, {protocol_module, wsserver_http_protocol}, {protocol_module_state, wsserver_http_protocol:init([])} | Options]) }.
 
-handle_cast({send, Data}, WorkerState) ->
-  send_data(Data, WorkerState);
+handle_cast({protocol_action, Action, Options}, WorkerState) ->
+  handle_action_in_protocol_module(Action, Options, WorkerState);
 handle_cast({connection_data, Data}, WorkerState) ->
   handle_connection_data_in_protocol_module(Data, WorkerState).
 
@@ -53,36 +50,54 @@ terminate(_Reason, WorkerState) ->
 %%% Internal
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-send_data(Data, WorkerState) ->
-  {ok, Message} = (protocol_module(WorkerState)):handle_connection_out(Data, protocol_module_state(WorkerState)),
-  wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Message),
-  {noreply, WorkerState}.
+handle_action_in_protocol_module(Action, Options, WorkerState) ->
+  evaluate_in_protocol_module(handle_action, [Action | Options], WorkerState).
 
 handle_connection_data_in_protocol_module(Data, WorkerState) ->
-  case ((protocol_module(WorkerState)):handle_connection_in(Data, protocol_module_state(WorkerState))) of
-    {send, Reply, new_protocol_module, ProtocolModule} ->
-      wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Reply),
-      {
-        noreply,
-        update_worker_state(WorkerState, [{protocol_module_state, init_protocol_module(ProtocolModule, WorkerState)}, {protocol_module, ProtocolModule}])
-      };
-    {send, Reply, NewProtocolModuleState} ->
-      wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Reply),
-      {
-        noreply,
+  evaluate_in_protocol_module(handle_connection_in, Data, WorkerState).
+
+evaluate_in_protocol_module(Function, Options, WorkerState) ->
+  case evaluate_protocol_function(Function, Options, WorkerState) of
+    {Responses, NewProtocolModuleState} ->
+      evaluate_protocol_responses(
+        Responses,
         update_worker_state(WorkerState, [{protocol_module_state, NewProtocolModuleState}])
-      };
-    {close, Reply, _NewProtocolModuleState} ->
+      );
+    {Responses, new_protocol_module, ProtocolModule} ->
+      evaluate_protocol_responses(
+        Responses,
+        update_worker_state(WorkerState, [
+            {protocol_module_state, init_protocol_module(ProtocolModule, WorkerState)},
+            {protocol_module, ProtocolModule}
+          ])
+      )
+  end.
+
+evaluate_protocol_function(Function, Options, WorkerState) ->
+  ((protocol_module(WorkerState)):Function(Options, protocol_module_state(WorkerState))).
+
+evaluate_protocol_responses([], WorkerState) ->
+  {noreply, WorkerState};
+evaluate_protocol_responses([Response | Tail], WorkerState) ->
+  case evaluate_protocol_response(Response, WorkerState) of
+    noreply ->
+      evaluate_protocol_responses(Tail, WorkerState);
+    {stop, Reason} ->
+      {stop, Reason, WorkerState}
+  end.
+
+evaluate_protocol_response(Response, WorkerState) ->
+  case Response of
+    {reply, Reply} ->
       wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Reply),
-      {
-        stop,
-        server_connection_close
-      };
-    {do_nothing, NewProtocolModuleState} ->
-      {
-        noreply,
-        update_worker_state(WorkerState, [{protocol_module_state, NewProtocolModuleState}])
-      }
+      noreply;
+    {close, Reply} ->
+      wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Reply),
+      {stop, server_connection_close};
+    noreply ->
+        noreply;
+    {stop, Reason} ->
+      {stop, Reason}
   end.
 
 init_protocol_module(ProtocolModule, WorkerState) ->

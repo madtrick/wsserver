@@ -14,10 +14,10 @@
 -module(wsmessage).
 -include_lib("wsock/include/wsock.hrl").
 
--export([decode/1, decode/2, encode/1, close/1]).
+-export([close/1, decode/1, decode/2, encode/1, ping/1, pong/1]).
 
-encode(Data) ->
-  wsock_message:encode(Data, [text]).
+close(Data) ->
+  wsock_message:encode(Data, [close]).
 
 decode(Data, FragmentedMessage) ->
   Messages = wsock_message:decode(Data, FragmentedMessage, [masked]),
@@ -27,8 +27,18 @@ decode(Data) ->
   Messages = wsock_message:decode(Data, [masked]),
   transform_to_expected_return_value(Messages).
 
-close(Payload) ->
-  wsock_message:encode(Payload, [close]).
+encode(Data) ->
+  wsock_message:encode(Data, [text]).
+
+ping(Data) ->
+  wsock_message:encode(Data, [ping]).
+
+pong(Data) ->
+  wsock_message:encode(Data, [pong]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Internal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 transform_to_expected_return_value(Messages) ->
   [{type(Message), data(Message)} || Message <- Messages].

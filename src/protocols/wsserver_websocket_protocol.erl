@@ -14,13 +14,17 @@
 -module(wsserver_websocket_protocol).
 
 -export([init/1]).
--export([handle_connection_out/2, handle_connection_in/2]).
+-export([handle_action/2, handle_connection_in/2]).
 
 init(Options)->
-  init_handler_module(wsserver_websocket_protocol_state_data:new(Options)).
+  init_handler_module(wsserver_websocket_protocol_state_data:new([{status_module, wsserver_websocket_open_status} | Options])).
 
-handle_connection_out(Data, _ProtocolState) ->
-  {ok, wsmessage:encode(Data)}.
+handle_action([send | [Data]], ProtocolState) ->
+  handle_action_in_status_module(send, Data, ProtocolState);
+handle_action([close | [Data]], ProtocolState) ->
+  handle_action_in_status_module(close, Data, ProtocolState);
+handle_action([ping | [Data]], ProtocolState) ->
+  handle_action_in_status_module(ping, Data, ProtocolState).
 
 handle_connection_in(Data, ProtocolState) ->
   {Messages, NewProtocolState} = process_request(Data, ProtocolState),
@@ -29,6 +33,8 @@ handle_connection_in(Data, ProtocolState) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Internal
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+handle_action_in_status_module(Action, Options, ProtocolState) ->
+  (status_module(ProtocolState)):handle_action(Action, Options, ProtocolState).
 
 process_request(Data, ProtocolState) ->
   case wsserver_websocket_protocol_state_data:buffered(ProtocolState) of
@@ -52,43 +58,10 @@ process_decoded_message(Message = {Type, _}, Tail, Acc, ProtocolState) ->
 end.
 
 process_messages(Messages, ProtocolState) ->
-  process_messages(Messages, ProtocolState, []).
+  process_messages_in_status_module(Messages, ProtocolState).
 
-process_messages([], ProtocolState, Replies) ->
-  case Replies of
-    [] ->
-      {do_nothing, ProtocolState};
-    [H | _]  ->
-      case H of
-        {close, _} ->
-          {close, lists:reverse(Replies), ProtocolState};
-        _ ->
-        {send, lists:reverse(Replies), ProtocolState}
-    end
-  end;
-
-process_messages([H | T], ProtocolState, Acc) ->
-  case process_message(H, ProtocolState) of
-    {noreply, NewProtocolState} ->
-      process_messages(T, NewProtocolState, Acc);
-    {reply, Reply, NewProtocolState} ->
-      process_messages(T, NewProtocolState, [{reply, Reply} | Acc]);
-    {close, Reply, NewProtocolState} ->
-      process_messages([], NewProtocolState, [{close, Reply} | Acc])
-  end.
-
-process_message(Message = {Type, _Payload}, ProtocolState) when Type =:= text ; Type =:= binary->
-  {ReplyType, NewHandlerState} = (handler_module(ProtocolState)):handle(Message, handler_state(ProtocolState)),
-  {ReplyType, wsserver_websocket_protocol_state_data:update(ProtocolState, [{handler_state, NewHandlerState}])};
-
-process_message({close, _Payload}, ProtocolState) ->
-  {close, wsmessage:close("OK"), ProtocolState}.
-
-handler_module(ProtocolState) ->
-  wsserver_websocket_protocol_state_data:handler_module(ProtocolState).
-
-handler_state(ProtocolState) ->
-  wsserver_websocket_protocol_state_data:handler_state(ProtocolState).
+process_messages_in_status_module(Messages, ProtocolState) ->
+  (status_module(ProtocolState)):process_messages(Messages, ProtocolState).
 
 buffer_message(Message, ProtocolState) ->
   wsserver_websocket_protocol_state_data:update(ProtocolState, [{buffered, true}, {buffer, Message}]).
@@ -96,6 +69,12 @@ buffer_message(Message, ProtocolState) ->
 clear_buffer(ProtocolState) ->
   wsserver_websocket_protocol_state_data:update(ProtocolState, [{buffered, false}, {buffer, undefined}]).
 
+status_module(ProtocolState) ->
+  wsserver_websocket_protocol_state_data:status_module(ProtocolState).
+
 init_handler_module(ProtocolState) ->
   HandlerState = (handler_module(ProtocolState)):init([{worker, self()}]),
   wsserver_websocket_protocol_state_data:update(ProtocolState, [{handler_state, HandlerState}]).
+
+handler_module(ProtocolState) ->
+  wsserver_websocket_protocol_state_data:handler_module(ProtocolState).

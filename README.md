@@ -64,7 +64,7 @@ handle(Message, State) ->
 
 ####Sending data asynchronously
 
-To send data using a WebSocket connection just use the function ```wsserver_worker:send/2``` passing it the reference of a worker and the data you want to send.
+To send data using a WebSocket connection just use the function ```wsserver_worker_websocket:send/2``` passing it the reference of a worker and the data you want to send.
 
 Below is an example:
 
