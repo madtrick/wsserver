@@ -1,5 +1,8 @@
 #Change Log
 
+###0.3.1
+* Fix a bug. Don't pass to the handler module fragmented messages.
+
 ###0.3.0
 * Fix a bug. The response from the ```wsserver_http_protocol:handle_connection_in/2``` was in some cases the atom ```do_nothing```  which is no longer valid.
 

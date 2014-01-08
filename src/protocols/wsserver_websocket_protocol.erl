@@ -52,7 +52,7 @@ process_decoded_messages([H | T], Acc, ProtocolState) ->
 process_decoded_message(Message = {Type, _}, Tail, Acc, ProtocolState) ->
   case Type of
     fragmented ->
-      process_decoded_messages(Tail, [Message | Acc], buffer_message(Message, ProtocolState));
+      process_decoded_messages(Tail, Acc, buffer_message(Message, ProtocolState));
     _ ->
       process_decoded_messages(Tail, [Message | Acc], clear_buffer(ProtocolState))
 end.
