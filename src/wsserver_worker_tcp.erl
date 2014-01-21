@@ -28,7 +28,6 @@ send(WorkerTCP, Data) ->
 accept(Worker, ListenSocket) ->
   case gen_tcp:accept(ListenSocket) of
     {ok, Socket} ->
-      io:format("Accepted ~w \n", [self()]),
       loop(wsserver_worker_tcp_state_data:new([{worker, Worker}, {socket, Socket}]));
     {error, _Reason} ->
       die("")
