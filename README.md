@@ -21,7 +21,7 @@ Below is an example:
 ```erlang
 Options = [
 	{port, 8080},
-	{number_or_workers, 10},
+	{number_of_workers, 10},
 	{worker_options,[
 		{protocol_modules,[
 			{wsserver_websocket_protocol, [
