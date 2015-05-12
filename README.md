@@ -42,8 +42,10 @@ The ```init/1``` function will be called when a WebSocket connection is establis
 The ```handle/2``` function will be called on each message received on the WebSocket connection and will be passed the message and the handler state (returned from init/1) as parameters. This function can return one of three terms:
 
 * ```{noreply, NewState}```. See [sending data asynchronously](#send_async).
-* ```{reply, Reply, NewState}```. Synchronous reply.
-* ```{close, Reply, NewState}```. Close the WebSocket connection and stop the worker.
+* ```{reply, Data, NewState}```. Synchronous reply.
+* ```{ping, NewState}``` or ```{ping, Data, NewState}```. Send a ping message.
+* ```{pong, NewState}``` or ```{pong, Data, NewState}```. Send a pong message.
+* ```{close, NewState}``` or ```{close, Status, ClosePayload, NewState}```. Close the WebSocket connection and stop the worker.
 
 Below is an example of a handler module:
 
