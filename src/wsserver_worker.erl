@@ -93,7 +93,7 @@ evaluate_protocol_response(Response, WorkerState) ->
       noreply;
     {close, Reply} ->
       wsserver_worker_tcp:send(wsserver_worker_state_data:worker_tcp(WorkerState), Reply),
-      {stop, server_connection_close};
+      {stop, shutdown};
     noreply ->
         noreply;
     {stop, Reason} ->
