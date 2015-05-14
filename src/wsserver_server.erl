@@ -18,7 +18,12 @@
 -export([init/1, handle_info/2]).
 
 start_link(Options) ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, Options, []).
+  Register = proplists:get_value(register, Options),
+  start_link(Options, Register).
+start_link(Options, undefined) ->
+  gen_server:start_link(?MODULE, Options, []);
+start_link(Options, Register) ->
+  gen_server:start_link(Register, ?MODULE, Options, []).
 
 %==========
 % Behaviour API
