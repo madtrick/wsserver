@@ -29,7 +29,9 @@ accept(Worker, ListenSocket) ->
   case gen_tcp:accept(ListenSocket) of
     {ok, Socket} ->
       loop(wsserver_worker_tcp_state_data:new([{worker, Worker}, {socket, Socket}]));
-    {error, _Reason} ->
+    {error, closed} ->
+      close;
+    {error, _} ->
       die("")
   end.
 
@@ -42,7 +44,7 @@ loop(State) ->
       loop(State);
     {tcp_closed, _} ->
       wsserver_worker:handle_connection_close(wsserver_worker_tcp_state_data:worker(State)),
-      close(State);
+      close;
     {tcp, _Socket, Data} ->
       wsserver_worker:handle_connection_data(wsserver_worker_tcp_state_data:worker(State), Data),
       loop(State);
@@ -51,9 +53,6 @@ loop(State) ->
     stop ->
       shutdown
   end.
-
-close(_) ->
-  io:format("Closing connection").
 
 die(_) ->
   io:format("Error accepting connection. Dying", []).
