@@ -37,7 +37,6 @@ accept(Worker, ListenSocket) ->
 
 loop(State) ->
   inet:setopts(wsserver_worker_tcp_state_data:socket(State), [{active, once}]),
-
   receive
     {send, Data} ->
       ok = gen_tcp:send(wsserver_worker_tcp_state_data:socket(State), Data),

@@ -33,5 +33,5 @@ process_messages([Message | Tail], ProtocolState, Replies) ->
 process_message(_Message = {Type, _}, _ProtocolState) when Type =/= close ->
   [];
 process_message(_Message, _ProtocolState) ->
-  {stop, connection_close}.
+  {stop, normal}.
 

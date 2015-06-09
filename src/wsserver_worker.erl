@@ -40,7 +40,7 @@ handle_cast({connection_data, Data}, WorkerState) ->
   handle_connection_data_in_protocol_module(Data, WorkerState).
 
 handle_call(connection_close, _, WorkerState) ->
-  {stop, client_connection_close, WorkerState}.
+  handle_connection_close_in_protocol_module(WorkerState).
 
 terminate(_Reason, WorkerState) ->
   wsserver_worker_tcp:stop(wsserver_worker_state_data:worker_tcp(WorkerState)),
@@ -55,6 +55,9 @@ handle_action_in_protocol_module(Action, Options, WorkerState) ->
 
 handle_connection_data_in_protocol_module(Data, WorkerState) ->
   evaluate_in_protocol_module(handle_connection_in, Data, WorkerState).
+
+handle_connection_close_in_protocol_module(WorkerState) ->
+  evaluate_in_protocol_module(handle_connection_close, [], WorkerState).
 
 evaluate_in_protocol_module(Function, Options, WorkerState) ->
   case evaluate_protocol_function(Function, Options, WorkerState) of
