@@ -15,7 +15,10 @@
 -include_lib("wsock/include/wsock.hrl").
 
 -export([init/1]).
--export([handle_connection_in/2]).
+-export([
+  handle_connection_in/2,
+  handle_connection_close/2
+]).
 
 init(_Options) ->
   wsserver_http_protocol_state_data:new().
@@ -32,6 +35,9 @@ handle_connection_in(Data, ProtocolState) ->
     {reply, Reply} ->
       {[{reply, Reply}], new_protocol_module, wsserver_websocket_protocol}
   end.
+
+handle_connection_close(_, _) ->
+  {stop, normal}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Internal

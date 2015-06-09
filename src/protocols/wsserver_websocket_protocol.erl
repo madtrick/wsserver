@@ -14,7 +14,11 @@
 -module(wsserver_websocket_protocol).
 
 -export([init/1]).
--export([handle_action/2, handle_connection_in/2]).
+-export([
+  handle_action/2,
+  handle_connection_in/2,
+  handle_connection_close/2
+]).
 
 init(Options)->
   init_handler_module(wsserver_websocket_protocol_state_data:new([{status_module, wsserver_websocket_open_status} | Options])).
@@ -29,6 +33,12 @@ handle_action([ping | [Data]], ProtocolState) ->
 handle_connection_in(Data, ProtocolState) ->
   {Messages, NewProtocolState} = process_request(Data, ProtocolState),
   process_messages(Messages, NewProtocolState).
+
+handle_connection_close(_, ProtocolState) ->
+  HandlerModule = wsserver_websocket_protocol_state_data:handler_module(ProtocolState),
+  HandlerState  = wsserver_websocket_protocol_state_data:handler_state(ProtocolState),
+  HandlerModule:handle(connection_close, HandlerState),
+  {[{stop, normal}], ProtocolState}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Internal

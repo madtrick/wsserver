@@ -14,8 +14,8 @@
 -module(wsserver_server).
 -behaviour(gen_server).
 
--export([start_link/1]).
--export([init/1, handle_info/2]).
+-export([start_link/1, stop/0, stop/1]).
+-export([init/1, handle_info/2, handle_cast/2, terminate/2]).
 
 start_link(Options) ->
   Register = proplists:get_value(register, Options),
@@ -24,6 +24,11 @@ start_link(Options, undefined) ->
   gen_server:start_link(?MODULE, Options, []);
 start_link(Options, Register) ->
   gen_server:start_link(Register, ?MODULE, Options, []).
+
+stop() ->
+  stop(?MODULE).
+stop(Server) ->
+  gen_server:cast(Server, stop).
 
 %==========
 % Behaviour API
@@ -45,6 +50,12 @@ init(Options) ->
 handle_info({'DOWN', _MonitorRef, _Type, _Object, _Info}, WSServerState) ->
   monitor_worker(start_worker(listen_socket(WSServerState), worker_options(WSServerState), workers_sup(WSServerState))),
   {noreply, WSServerState}.
+
+handle_cast(stop, WSServerState) ->
+  {stop, normal, WSServerState}.
+
+terminate(_, _) ->
+  ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Internal
