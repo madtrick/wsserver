@@ -1,7 +1,7 @@
 {application, wsserver,
  [
   {description, "A simple websocket server"},
-  {vsn, "1"},
+  {vsn, "0.4.0"},
   {registered, []},
   {applications, [
                   kernel,
