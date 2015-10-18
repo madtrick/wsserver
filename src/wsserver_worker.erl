@@ -14,7 +14,7 @@
 -module(wsserver_worker).
 
 -export([start_link/2]).
--export([init/1, handle_cast/2, handle_call/3, terminate/2]).
+-export([init/1, handle_cast/2, terminate/2]).
 -export([handle_connection_data/2, handle_connection_close/1]).
 
 start_link(Socket, Options) ->
@@ -24,7 +24,7 @@ handle_connection_data(Worker, Data) ->
   gen_server:cast(Worker, {connection_data, Data}).
 
 handle_connection_close(Worker) ->
-  gen_server:call(Worker, connection_close).
+  gen_server:cast(Worker, connection_close).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Behaviour callbacks
@@ -37,9 +37,8 @@ init([Socket, Options]) ->
 handle_cast({protocol_action, Action, Options}, WorkerState) ->
   handle_action_in_protocol_module(Action, Options, WorkerState);
 handle_cast({connection_data, Data}, WorkerState) ->
-  handle_connection_data_in_protocol_module(Data, WorkerState).
-
-handle_call(connection_close, _, WorkerState) ->
+  handle_connection_data_in_protocol_module(Data, WorkerState);
+handle_cast(connection_close, WorkerState) ->
   handle_connection_close_in_protocol_module(WorkerState).
 
 terminate(_Reason, WorkerState) ->
